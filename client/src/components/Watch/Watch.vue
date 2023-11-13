@@ -279,6 +279,10 @@ export default Vue.extend({
     height: calc(100dvh - env(safe-area-inset-bottom)) !important;
     background: var(--v-black-base) !important;
     overflow: hidden;
+    @include smartphone-horizontal {
+        padding-left: env(safe-area-inset-left) ;
+        padding-right: env(safe-area-inset-right) ;
+    }
 }
 
 .watch-container {

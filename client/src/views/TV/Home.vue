@@ -266,6 +266,12 @@ export default defineComponent({
         margin-left: 0px;
         margin-right: 0px;
     }
+    @include smartphone-horizontal {
+            padding-right: env(safe-area-inset-right) ;
+        }
+    @include smartphone-horizontal-short {
+            padding-right: env(safe-area-inset-right) ;
+    }
 
     &--loading {
         opacity: 0;
