@@ -22,14 +22,12 @@
     z-index: 10;
 
     @include smartphone-horizontal {
-        width: calc(env(safe-area-inset-left) + 210px) ;
-        padding-left: env(safe-area-inset-left) ;
+        width: calc(210px + env(safe-area-inset-left));
         height: 48px;
         justify-content: center;
     }
     @include smartphone-horizontal-short {
-        width: calc(env(safe-area-inset-left) + 190px) ;
-        padding-left: env(safe-area-inset-left)
+        width: calc(190px + env(safe-area-inset-left));
     }
     @include smartphone-vertical {
         display: none;

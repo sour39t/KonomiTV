@@ -276,12 +276,21 @@ export default Vue.extend({
 
 .route-container {
     height: 100vh !important;
-    height: calc(100dvh - env(safe-area-inset-bottom)) !important;
+    height: 100dvh !important;
+    border-bottom: env(safe-area-inset-bottom) solid var(--v-background-base);  // Home Indicator 分浮かせる余白の背景色
     background: var(--v-black-base) !important;
     overflow: hidden;
+    // タブレット横画面・スマホ横画面のみ Home Indicator 分浮かせる余白の背景色を var(--v-black-base) にする
+    // 映像の左右の黒い余白と背景色を合わせる
+    @include tablet-horizontal {
+        border-bottom: env(safe-area-inset-bottom) solid var(--v-black-base);
+        border-left: env(safe-area-inset-left) solid var(--v-background-base);
+        border-right: env(safe-area-inset-right) solid var(--v-background-base);
+    }
     @include smartphone-horizontal {
-        padding-left: env(safe-area-inset-left) ;
-        padding-right: env(safe-area-inset-right) ;
+        border-bottom: env(safe-area-inset-bottom) solid var(--v-black-base);
+        border-left: env(safe-area-inset-left) solid var(--v-background-base);
+        border-right: env(safe-area-inset-right) solid var(--v-background-base);
     }
 }
 

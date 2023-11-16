@@ -77,10 +77,10 @@ export default defineComponent({
     width: 220px;  // .navigation を fixed にするため、浮いた分の幅を確保する
     background: var(--v-background-lighten1);
     @include smartphone-horizontal {
-        width: calc(env(safe-area-inset-left) + 210px) ;
+        width: calc(210px + env(safe-area-inset-left));
     }
     @include smartphone-horizontal-short {
-        width: calc(env(safe-area-inset-left) + 190px) ;
+        width: calc(190px + env(safe-area-inset-left));
     }
     @include smartphone-vertical {
         display: none;
@@ -99,12 +99,12 @@ export default defineComponent({
         z-index: 1;
         @include smartphone-horizontal {
             top: 48px;
-            width: calc(env(safe-area-inset-left) + 210px) ;
-            padding-left: env(safe-area-inset-left) ;
+            width: 210px;
+            margin-left:env(safe-area-inset-left);
         }
         @include smartphone-horizontal-short {
-            width: calc(env(safe-area-inset-left) + 190px) ;
-            padding-left: env(safe-area-inset-left) ;
+            width: 190px;
+            margin-left:env(safe-area-inset-left);
         }
 
         .navigation-scroll {
