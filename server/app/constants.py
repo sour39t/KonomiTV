@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 
 # バージョン
-VERSION = '0.9.0-dev'
+VERSION = '0.10.0-dev'
 
 # ベースディレクトリ
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -61,7 +61,7 @@ LIBRARY_PATH = {
 }
 
 # データベース (Tortoise ORM) の設定
-model_list = [name for _, name, _ in pkgutil.iter_modules(path=['app/models'])]
+__model_list = [name for _, name, _ in pkgutil.iter_modules(path=['app/models'])]
 DATABASE_CONFIG = {
     'timezone': 'Asia/Tokyo',
     'connections': {
@@ -69,7 +69,7 @@ DATABASE_CONFIG = {
     },
     'apps': {
         'models': {
-            'models': [f'app.models.{name}' for name in model_list] + ['aerich.models'],
+            'models': [f'app.models.{name}' for name in __model_list] + ['aerich.models'],
             'default_connection': 'default',
         }
     }

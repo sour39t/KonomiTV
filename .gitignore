@@ -160,4 +160,3 @@ server/thirdparty/*
 # ignore .gitkeep
 !.gitkeep
 
-/client/dist/

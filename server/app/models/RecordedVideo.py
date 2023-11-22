@@ -46,6 +46,7 @@ class RecordedVideo(models.Model):
     recording_start_time: datetime | None = fields.DatetimeField(null=True)  # type: ignore
     recording_end_time: datetime | None = fields.DatetimeField(null=True)  # type: ignore
     duration: float = fields.FloatField()  # type: ignore
+    # 万が一将来他のコンテナ形式をサポートすることになった時のために一応定義しているが、当面の間 MPEG-TS 以外はサポートしない
     container_format: Literal['MPEG-TS'] = fields.CharField(255)  # type: ignore
     video_codec: Literal['MPEG-2', 'H.264', 'H.265'] = fields.CharField(255)  # type: ignore
     # プロファイルは他にも多くあるが、現実的に使われそうなものだけを列挙
@@ -54,10 +55,10 @@ class RecordedVideo(models.Model):
     video_frame_rate: float = fields.FloatField()  # type: ignore
     video_resolution_width: int = fields.IntField()  # type: ignore
     video_resolution_height: int = fields.IntField()  # type: ignore
-    primary_audio_codec: Literal['AAC-LC', 'HE-AAC', 'MP2'] = fields.CharField(255)  # type: ignore
+    primary_audio_codec: Literal['AAC-LC'] = fields.CharField(255)  # type: ignore
     primary_audio_channel: Literal['Monaural', 'Stereo', '5.1ch'] = fields.CharField(255)  # type: ignore
     primary_audio_sampling_rate: int = fields.IntField()  # type: ignore
-    secondary_audio_codec: Literal['AAC-LC', 'HE-AAC', 'MP2'] | None = fields.CharField(255, null=True)  # type: ignore
+    secondary_audio_codec: Literal['AAC-LC'] | None = fields.CharField(255, null=True)  # type: ignore
     secondary_audio_channel: Literal['Monaural', 'Stereo', '5.1ch'] | None = fields.CharField(255, null=True)  # type: ignore
     secondary_audio_sampling_rate: int | None = fields.IntField(null=True)  # type: ignore
     cm_sections: list[CMSection] = \

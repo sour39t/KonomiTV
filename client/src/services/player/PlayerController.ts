@@ -2,6 +2,7 @@
 import assert from 'assert';
 
 import DPlayer, { DPlayerType } from 'dplayer';
+import Hls from 'hls.js';
 import mpegts from 'mpegts.js';
 
 import KeyboardShortcutManager from './managers/KeyboardShortcutManager';
@@ -64,6 +65,10 @@ class PlayerController {
     // ライブ視聴: mpegts.js のバッファ詰まり対策で定期的に強制シークするインターバルのタイマー ID
     // 保持しておかないと clearInterval() でタイマーを止められない
     private live_force_seek_interval_timer_id: number = 0;
+
+    // ビデオ視聴: ビデオストリームのアクティブ状態を維持するために Keep-Alive API にリクエストを送るインターバルのタイマー ID
+    // 保持しておかないと clearInterval() でタイマーを止められない
+    private video_keep_alive_interval_timer_id: number = 0;
 
     // setupPlayerContainerResizeHandler() で利用する ResizeObserver
     // 保持しておかないと disconnect() で ResizeObserver を止められない
@@ -157,9 +162,10 @@ class PlayerController {
         // KeyboardShortcutManager がこのタイミングで破棄される
         player_store.is_player_initialized = true;
 
-        // mpegts.js を window 直下に入れる
-        // こうしないと DPlayer が mpegts.js を認識できない
+        // mpegts.js と hls.js を window 直下に入れる
+        // こうしないと DPlayer が mpegts.js / hls.js を認識できない
         (window as any).mpegts = mpegts;
+        (window as any).Hls = Hls;
 
         // 文字スーパーの表示設定
         // ライブ視聴とビデオ視聴で設定キーが異なる
@@ -383,6 +389,65 @@ class PlayerController {
                         liveSyncPlaybackRate: 1.1,
                     }
                 },
+                // hls.js
+                hls: {
+                    ...Hls.DefaultConfig,
+                    // デバッグログを有効化
+                    debug: true,
+                    // Web Worker を有効にする
+                    enableWorker: true,
+                    // MediaSource が存在しない場合のみ ManagedMediaSource を利用する
+                    preferManagedMediaSource: false,
+                    // プレイリスト / セグメントのリクエスト時のタイムアウトを回避する
+                    manifestLoadPolicy: {
+                        default: {
+                            maxTimeToFirstByteMs: 1000000,  // 適当に大きな値を設定
+                            maxLoadTimeMs: 1000000,  // 適当に大きな値を設定
+                            timeoutRetry: {
+                                maxNumRetry: 2,
+                                retryDelayMs: 0,
+                                maxRetryDelayMs: 0,
+                            },
+                            errorRetry: {
+                                maxNumRetry: 1,
+                                retryDelayMs: 1000,
+                                maxRetryDelayMs: 8000,
+                            },
+                        },
+                    },
+                    playlistLoadPolicy: {
+                        default: {
+                            maxTimeToFirstByteMs: 1000000,  // 適当に大きな値を設定
+                            maxLoadTimeMs: 1000000,  // 適当に大きな値を設定
+                            timeoutRetry: {
+                                maxNumRetry: 2,
+                                retryDelayMs: 0,
+                                maxRetryDelayMs: 0,
+                            },
+                            errorRetry: {
+                                maxNumRetry: 2,
+                                retryDelayMs: 1000,
+                                maxRetryDelayMs: 8000,
+                            }
+                        }
+                    },
+                    fragLoadPolicy: {
+                        default: {
+                            maxTimeToFirstByteMs: 1000000,  // 適当に大きな値を設定
+                            maxLoadTimeMs: 1000000,  // 適当に大きな値を設定
+                            timeoutRetry: {
+                                maxNumRetry: 4,
+                                retryDelayMs: 0,
+                                maxRetryDelayMs: 0,
+                            },
+                            errorRetry: {
+                                maxNumRetry: 6,
+                                retryDelayMs: 1000,
+                                maxRetryDelayMs: 8000,
+                            }
+                        }
+                    }
+                },
                 // aribb24.js
                 aribb24: {
                     // 文字スーパーレンダラーを無効にするかどうか
@@ -573,7 +638,7 @@ class PlayerController {
 
         // 各 PlayerManager を初期化・登録
         // ライブ視聴とビデオ視聴で必要な PlayerManager が異なる
-        // 一応順序は意図的だがそこまで重要ではない
+        // この初期化順序は意図的 (入れ替えても動作するものもあるが、CaptureManager は KeyboardShortcutManager より先に初期化する必要がある)
         if (this.playback_mode === 'Live') {
             // ライブ視聴時に設定する PlayerManager
             this.player_managers = [
@@ -636,7 +701,7 @@ class PlayerController {
         await Utils.sleep(1);
 
         // この時点で映像が停止していて、かつ readyState が HAVE_FUTURE_DATA な場合、復旧を試みる
-        // Safari ではタイミングによっては null になる場合があるらしいので ? を付ける
+        // Safari ではタイミングによっては this.player.video が null になる場合があるらしいので ? を付ける
         if (player_store.is_video_buffering === true && this.player?.video?.readyState < 3) {
             console.warn('\u001b[31m[PlayerController] Video still buffering. (HTMLVideoElement.readyState < HAVE_FUTURE_DATA) trying to recover.');
 
@@ -696,6 +761,19 @@ class PlayerController {
                     this.player.sync();
                 }
             }, 60 * 1000);
+        }
+
+        // ビデオ視聴: ビデオストリームのアクティブ状態を維持するために 15 秒おきに Keep-Alive API にリクエストを送る
+        // HLS プレイリストやセグメントのリクエストが行われたタイミングでも Keep-Alive が行われるが、
+        // それだけではタイミング次第では十分ではないため、定期的に Keep-Alive を行う
+        // Keep-Alive が行われなくなったタイミングで、サーバー側で自動的にビデオストリームの終了処理 (エンコードタスクの停止) が行われる
+        if (this.playback_mode === 'Video') {
+            this.video_keep_alive_interval_timer_id = window.setInterval(async () => {
+                // 画質切り替えでベース URL が変わることも想定し、あえて毎回 API URL を取得している
+                if (this.player === null) return;
+                const api_quality = PlayerUtils.extractVideoAPIQualityFromDPlayer(this.player);
+                await APIClient.put(`${Utils.api_base_url}/streams/video/${player_store.recorded_program.id}/${api_quality}/keep-alive`);
+            }, 15 * 1000);
         }
 
         // 再生/停止されたときのイベント
@@ -1261,9 +1339,8 @@ class PlayerController {
         player_store.live_comment_init_failed_message = null;
         player_store.video_comment_init_failed_message = null;
 
-        // ローディング状態への移行に伴い、映像がフェードアウトするアニメーション (0.2秒) 分待ってから実行
+        // 映像がフェードアウトするアニメーション (0.2秒) 分待ってから実行
         // この 0.2 秒の間に音量をフェードアウトさせる
-        // なお、ザッピングでチャンネルを連続で切り替えている場合は実行しない (実行しても意味がないため)
         if (this.player !== null) {
             // 0.2 秒間かけて current_volume から 0 まで音量を下げる
             const current_volume = this.player.user.get('volume');
@@ -1280,6 +1357,7 @@ class PlayerController {
 
         // タイマーを破棄
         window.clearInterval(this.live_force_seek_interval_timer_id);
+        window.clearInterval(this.video_keep_alive_interval_timer_id);
         window.clearTimeout(this.player_control_ui_hide_timer_id);
 
         // プレイヤー全体のコンテナ要素の監視を停止

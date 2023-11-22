@@ -30,13 +30,11 @@ from app.routers import TwitterRouter
 from app.routers import UsersRouter
 from app.routers import VersionRouter
 from app.routers import VideosRouter
+from app.routers import VideoStreamsRouter
 from app.streams.LiveStream import LiveStream
 from app.utils import Logging
 from app.utils.EDCB import EDCBTuner
 
-
-# このアプリケーションの実行中のイベントループ
-loop = asyncio.get_running_loop()
 
 # もし Config() の実行時に AssertionError が発生した場合は、LoadConfig() を実行してサーバー設定データをロードする
 ## 自動リロードモードでは app.py がサーバープロセスのエントリーポイントになるため、
@@ -73,6 +71,7 @@ app.include_router(ChannelsRouter.router)
 app.include_router(VideosRouter.router)
 app.include_router(SeriesRouter.router)
 app.include_router(LiveStreamsRouter.router)
+app.include_router(VideoStreamsRouter.router)
 app.include_router(CapturesRouter.router)
 app.include_router(NiconicoRouter.router)
 app.include_router(TwitterRouter.router)
@@ -220,8 +219,8 @@ async def Shutdown():
     cleanup = True
 
     # 全てのライブストリームを終了する
-    for livestream in LiveStream.getAllLiveStreams():
-        livestream.setStatus('Offline', 'ライブストリームは Offline です。', True)
+    for live_stream in LiveStream.getAllLiveStreams():
+        live_stream.setStatus('Offline', 'ライブストリームは Offline です。', True)
 
     # 全てのチューナーインスタンスを終了する (EDCB バックエンドのみ)
     if CONFIG.general.backend == 'EDCB':
